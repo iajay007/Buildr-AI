@@ -32,7 +32,7 @@ export const BuildrAgent = inngest.createFunction(
                 orderBy: {
                     createdAt: "desc",
                 },
-                take:5,
+                take: 5,
             });
             for (const message of messages) {
                 formattedMessages.push({
@@ -196,44 +196,48 @@ export const BuildrAgent = inngest.createFunction(
         const result = await network.run(event.data.value, { state });
 
         const fragmentTitle = await step.run("generate-fragment-title", async () => {
-            const fragmentTitleGenerator = createAgent({
-                name: "fragment-title-generator",
-                description: "A fragment title generator",
-                system: FRAGMENT_TITLE_PROMPT,
-                model: openai({
+            const res = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+                },
+                body: JSON.stringify({
                     model: "gpt-4o",
-                })
+                    messages: [
+                        { role: "system", content: FRAGMENT_TITLE_PROMPT },
+                        { role: "user", content: result.state.data.summary },
+                    ],
+                }),
             });
-            const { output: fragmentTitleOutput } = await fragmentTitleGenerator.run(result.state.data.summary);
-            if (fragmentTitleOutput[0]?.type !== "text") return "Fragment";
-            if (Array.isArray(fragmentTitleOutput[0].content)) {
-                return fragmentTitleOutput[0].content.map((txt) => txt).join("");
-            }
-            return fragmentTitleOutput[0].content;
+            const data = await res.json();
+            return (data.choices?.[0]?.message?.content as string) ?? "Fragment";
         });
 
         const responseText = await step.run("generate-response", async () => {
-            const responseGenerator = createAgent({
-                name: "response-generator",
-                description: "A response generator",
-                system: RESPONSE_PROMPT,
-                model: openai({
+            const res = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+                },
+                body: JSON.stringify({
                     model: "gpt-4o",
-                })
+                    messages: [
+                        { role: "system", content: RESPONSE_PROMPT },
+                        { role: "user", content: result.state.data.summary },
+                    ],
+                }),
             });
-            const { output: responseOutput } = await responseGenerator.run(result.state.data.summary);
-            if (responseOutput[0]?.type !== "text") return "Here you go";
-            if (Array.isArray(responseOutput[0].content)) {
-                return responseOutput[0].content.map((txt) => txt).join("");
-            }
-            return responseOutput[0].content;
+            const data = await res.json();
+            return (data.choices?.[0]?.message?.content as string) ?? "Here you go";
         });
 
         const isError = !result.state.data.summary ||
             Object.keys(result.state.data.files || {}).length === 0;
         const sandboxUrl = await step.run("get-sandbox-url", async () => {
             const sandbox = await getSandbox(sandboxId);
-                    await sandbox.setTimeout(60_00*10*5)
+            await sandbox.setTimeout(60_00 * 10 * 5)
 
             const host = sandbox.getHost(3000);
             return `https://${host}`;

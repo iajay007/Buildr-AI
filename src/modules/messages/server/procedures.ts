@@ -52,9 +52,10 @@ export const messagesRouter = createTRPCRouter({
             }
             catch (error) {
                 if (error instanceof Error) {
-                    throw new TRPCError({ code: "BAD_REQUEST", message: " Something went wrong" });
-                }
-                else {
+                    // Real errors (DB issues, auth issues, etc.)
+                    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Something went wrong" });
+                } else {
+                    // rate-limiter-flexible throws a RateLimiterRes object (not an Error) when points are exhausted
                     throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "You have run out of credits" });
                 }
             }
