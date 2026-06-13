@@ -59,26 +59,22 @@ export const messagesRouter = createTRPCRouter({
                 }
             }
 
-            try {
-                const createdMessage = await prisma.message.create({
-                    data: {
-                        projectId: existingProject.id,
-                        content: input.value,
-                        role: "USER",
-                        type: "RESULT",
-                    },
-                });
-                await inngest.send({
-                    name: "BuildrAgent/run",
-                    data: {
-                        value: input.value,
-                        projectId: input.projectId,
-                    }
-                });
-                return createdMessage;
-            } catch (error) {
-                throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create message" });
-            }
+            const createdMessage = await prisma.message.create({
+                data: {
+                    projectId: existingProject.id,
+                    content: input.value,
+                    role: "USER",
+                    type: "RESULT",
+                },
+            });
+            await inngest.send({
+                name: "BuildrAgent/run",
+                data: {
+                    value: input.value,
+                    projectId: existingProject.id,
+                }
+            });
+            return createdMessage;
         }),
 
 });
