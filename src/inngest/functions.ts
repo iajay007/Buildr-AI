@@ -195,50 +195,39 @@ export const BuildrAgent = inngest.createFunction(
 
         const result = await network.run(event.data.value, { state });
 
-        const fragmentTitleGenerator = createAgent({
-            name: "fragment-title-generator",
-            description: "A fragment title generator",
-            system: FRAGMENT_TITLE_PROMPT,
-            model: openai({
-                model: "gpt-4o",
-            })
-        })
-        const responseGenerator = createAgent({
-            name: "response-generator",
-            description: "A responsee generator",
-            system: RESPONSE_PROMPT,
-            model: openai({
-                model: "gpt-4o",
-            })
-        })
-        const { output: fragmentTitleOutput } = await fragmentTitleGenerator.run(result.state.data.summary);
-        const { output: responseOutput } = await responseGenerator.run(result.state.data.summary);
-        const generateFragmentTitle = () => {
-            if (fragmentTitleOutput[0].type !== "text") {
-                return "Fragment";
-            }
+        const fragmentTitle = await step.run("generate-fragment-title", async () => {
+            const fragmentTitleGenerator = createAgent({
+                name: "fragment-title-generator",
+                description: "A fragment title generator",
+                system: FRAGMENT_TITLE_PROMPT,
+                model: openai({
+                    model: "gpt-4o",
+                })
+            });
+            const { output: fragmentTitleOutput } = await fragmentTitleGenerator.run(result.state.data.summary);
+            if (fragmentTitleOutput[0]?.type !== "text") return "Fragment";
             if (Array.isArray(fragmentTitleOutput[0].content)) {
                 return fragmentTitleOutput[0].content.map((txt) => txt).join("");
             }
-            else {
-                return fragmentTitleOutput[0].content;
-            }
-        };
+            return fragmentTitleOutput[0].content;
+        });
 
-        const generateResponse = () => {
-            if (responseOutput[0].type !== "text") {
-                return "Here you go";
-            }
+        const responseText = await step.run("generate-response", async () => {
+            const responseGenerator = createAgent({
+                name: "response-generator",
+                description: "A response generator",
+                system: RESPONSE_PROMPT,
+                model: openai({
+                    model: "gpt-4o",
+                })
+            });
+            const { output: responseOutput } = await responseGenerator.run(result.state.data.summary);
+            if (responseOutput[0]?.type !== "text") return "Here you go";
             if (Array.isArray(responseOutput[0].content)) {
                 return responseOutput[0].content.map((txt) => txt).join("");
             }
-            else {
-                return responseOutput[0].content;
-            }
-
-
-        }
-
+            return responseOutput[0].content;
+        });
 
         const isError = !result.state.data.summary ||
             Object.keys(result.state.data.files || {}).length === 0;
@@ -256,33 +245,42 @@ export const BuildrAgent = inngest.createFunction(
             const project = await prisma.project.findUnique({
                 where: { id: event.data.projectId },
             });
-            if (!project) return null;
+            if (!project) {
+                console.warn(`[save-result] Project not found: ${event.data.projectId}`);
+                return null;
+            }
 
-            if (isError) {
+            try {
+                if (isError) {
+                    return await prisma.message.create({
+                        data: {
+                            projectId: project.id,
+                            content: "Something went wrong, please try again.",
+                            role: "ASSISTANT",
+                            type: "ERROR",
+                        },
+                    });
+                }
                 return await prisma.message.create({
                     data: {
-                        projectId: event.data.projectId,
-                        content: "Something went wrong,Please try again.",
+                        projectId: project.id,
+                        content: responseText,
                         role: "ASSISTANT",
-                        type: "ERROR",
+                        type: "RESULT",
+                        fragment: {
+                            create: {
+                                sandboxUrl: sandboxUrl,
+                                title: fragmentTitle,
+                                files: result.state.data.files,
+                            }
+                        },
                     },
                 });
+            } catch (error) {
+                console.error(`[save-result] Failed to create message for project ${project.id}:`, error);
+                // Don't rethrow — prevents Inngest from retrying this step on FK or constraint errors
+                return null;
             }
-            return await prisma.message.create({
-                data: {
-                    projectId: event.data.projectId,
-                    content: generateResponse(),
-                    role: "ASSISTANT",
-                    type: "RESULT",
-                    fragment: {
-                        create: {
-                            sandboxUrl: sandboxUrl,
-                            title: generateFragmentTitle(),
-                            files: result.state.data.files,
-                        }
-                    },
-                },
-            })
         });
         return {
             url: sandboxUrl,
