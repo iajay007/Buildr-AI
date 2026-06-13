@@ -246,28 +246,32 @@ export const BuildrAgent = inngest.createFunction(
 
 
         await step.run("save-result", async () => {
-            const project = await prisma.project.findUnique({
-                where: { id: event.data.projectId },
-            });
-            if (!project) {
-                console.warn(`[save-result] Project not found: ${event.data.projectId}`);
-                return null;
-            }
-
             try {
+                // Verify project exists first
+                const projectExists = await prisma.project.findUnique({
+                    where: { id: event.data.projectId },
+                    select: { id: true },
+                });
+
+                if (!projectExists) {
+                    console.warn(`[save-result] Project not found: ${event.data.projectId}`);
+                    return null;
+                }
+
                 if (isError) {
                     return await prisma.message.create({
                         data: {
-                            projectId: project.id,
+                            projectId: event.data.projectId,
                             content: "Something went wrong, please try again.",
                             role: "ASSISTANT",
                             type: "ERROR",
                         },
                     });
                 }
+
                 return await prisma.message.create({
                     data: {
-                        projectId: project.id,
+                        projectId: event.data.projectId,
                         content: responseText,
                         role: "ASSISTANT",
                         type: "RESULT",
@@ -275,14 +279,14 @@ export const BuildrAgent = inngest.createFunction(
                             create: {
                                 sandboxUrl: sandboxUrl,
                                 title: fragmentTitle,
-                                files: result.state.data.files,
-                            }
+                                files: result.state.data.files ?? {},
+                            },
                         },
                     },
                 });
             } catch (error) {
-                console.error(`[save-result] Failed to create message for project ${project.id}:`, error);
-                // Don't rethrow — prevents Inngest from retrying this step on FK or constraint errors
+                // Catch ALL errors (FK, connection, etc.) — prevents Inngest from retrying
+                console.error(`[save-result] Failed for project ${event.data.projectId}:`, error);
                 return null;
             }
         });
