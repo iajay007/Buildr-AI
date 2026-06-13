@@ -253,6 +253,11 @@ export const BuildrAgent = inngest.createFunction(
 
 
         await step.run("save-result", async () => {
+            const project = await prisma.project.findUnique({
+                where: { id: event.data.projectId },
+            });
+            if (!project) return null;
+
             if (isError) {
                 return await prisma.message.create({
                     data: {
