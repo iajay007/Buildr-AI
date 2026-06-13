@@ -1,123 +1,121 @@
-# Buildr
+# Buildr AI
 
 <img width="41" height="40" alt="image" src="https://github.com/user-attachments/assets/099bec03-1d2f-4f4e-901a-1c8119f7921d" />
 
-
-Here is a **template for a professional README.md** for your Buildr project, including a project introduction, structure, installation, usage, environment configuration, contribution guide, and more. This is tailored for modern AI-powered, Next.js-based platforms and incorporates directory structure representation.
-
-***
-
-# Buildr
-
-Buildr is an AI-powered platform that generates complete websites from simple text prompts. With Buildr, users can describe their website needs in natural language, and the AI will automatically create responsive, modern web designs with functional components and business logic.
-
-## Table of Contents
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Environment Variables](#environment-variables)
-- [Technologies](#technologies)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
+Buildr is an AI-powered app builder that generates complete, production-ready Next.js applications from plain text prompts. Describe what you want to build, and the AI agent writes the code, runs it in an isolated sandbox, and gives you a live preview — instantly.
 
 ## Features
-- 🤖 Generate websites from AI text prompts
-- 🎨 Modern UI with customizable elements
-- 📱 Responsive layouts for all devices
-- 🔌 Built-in components (auth, forms, etc.)
-- 🚀 Easy export for deployment (`Vercel`, `Netlify`, etc.)
-- 💻 Powered by Next.js for fast performance
+
+- **Prompt-to-app generation** — describe your idea in natural language and get a working Next.js app
+- **Live sandbox previews** — generated apps run in secure, isolated E2B environments with real URLs
+- **Multi-turn conversations** — refine your app iteratively through follow-up prompts
+- **Project management** — create and manage multiple projects, each with full conversation history
+- **Usage/credit system** — free and pro tiers with per-generation credit tracking
+- **Authentication** — user accounts and session management via Clerk
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 15 (Turbopack), React 19, TypeScript |
+| UI | Shadcn/UI, Radix UI, Tailwind CSS |
+| Auth | Clerk |
+| Database | PostgreSQL (Neon) via Prisma ORM |
+| AI | OpenAI API (gpt-4.1 for generation, gpt-4o for titles/responses) |
+| Code Execution | E2B Code Interpreter (sandboxed) |
+| Async Workflows | Inngest |
+| API Layer | tRPC |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- A [Neon](https://neon.tech) PostgreSQL database
+- API keys for [Clerk](https://clerk.com), [OpenAI](https://platform.openai.com), [E2B](https://e2b.dev), and [Inngest](https://inngest.com)
+
+### Installation
+
+```bash
+git clone https://github.com/iajay007/Buildr-AI.git
+cd Buildr-AI
+npm install
+```
+
+### Environment Variables
+
+Create a `.env` file at the project root:
+
+```env
+# Database
+DATABASE_URL="postgresql://user:password@host/database"
+
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
+CLERK_SECRET_KEY="sk_test_..."
+
+# OpenAI
+OPENAI_API_KEY="sk-proj-..."
+
+# E2B Code Interpreter
+E2B_API_KEY="e2b_..."
+
+# Inngest
+INNGEST_EVENT_KEY="..."
+INNGEST_SIGNING_KEY="..."        # omit for local dev
+INNGEST_DEV=1                    # set to 1 for local dev
+```
+
+### Run Locally
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+For Inngest workflows in development, run the Inngest dev server in a separate terminal:
+
+```bash
+npx inngest-cli@latest dev
+```
 
 ## Project Structure
 
 ```
-Buildr/
-├── .vscode/                     # Editor settings
-├── components/
-│   └── ui/                      # UI components
-├── prisma/                      # Database schema & config
-├── public/                      # Public assets (images, favicon, etc.)
-├── sandbox-templates/
-│   └── nextjs/                  # Next.js template sandboxes
-├── src/                         # Application source code
-├── .gitignore                   # Git ignore rules
-├── README.md                    # Project documentation
-├── components.json              # Dynamic component config
-├── eslint.config.mjs            # Linting configuration
-├── next.config.ts               # Next.js config
-├── package.json                 # Project dependencies & scripts
-├── package-lock.json            # Package lock file
-├── postcss.config.mjs           # PostCSS configuration
-├── tsconfig.json                # TypeScript settings
+src/
+├── app/                  # Next.js pages and layouts
+├── modules/              # Feature modules (projects, messages, usage, home)
+│   ├── projects/         # Project creation and listing
+│   ├── messages/         # Conversation and fragment display
+│   └── usage/            # Credit tracking UI
+├── inngest/              # Inngest agent and workflow definitions
+├── trpc/                 # tRPC router and procedures
+├── lib/                  # Utilities (db client, usage helpers)
+├── prompt.ts             # System prompt for the AI agent
+prisma/
+└── schema.prisma         # Database models (Project, Message, Fragment, Usage)
 ```
 
-## Getting Started
+## Database Models
 
-1. **Clone the repository**:
-    ```bash
-    git clone https://github.com/adityarao3/Buildr.git
-    cd Buildr
-    ```
-2. **Install dependencies**:
-    ```bash
-    npm install
-    # or
-    yarn install
-    # or
-    pnpm install
-    # or
-    bun install
-    ```
+- **Project** — a user's builder session
+- **Message** — individual turns in a project conversation (user prompt or AI response)
+- **Fragment** — generated code artifact attached to a message, with a live sandbox URL
+- **Usage** — per-user credit consumption for rate limiting
 
-3. **Start the development server**:
-    ```bash
-    npm run dev
-    # or
-    yarn dev
-    # or
-    pnpm dev
-    # or
-    bun dev
-    ```
+## Deployment
 
-4. **Open in your browser**:  
-   Visit `http://localhost:3000` or [buildr-delta.vercel.app](https://buildr-delta.vercel.app/) to start building with AI.
+This project is optimized for [Vercel](https://vercel.com). After importing the repository:
 
-## Environment Variables
+1. Add all environment variables from the `.env` template above in the Vercel project settings
+2. Vercel will auto-detect Next.js and configure the build
+3. Set `INNGEST_DEV` to `0` (or remove it) and add your `INNGEST_SIGNING_KEY` for production
 
-Create a `.env` file at the root with the following variables (replace placeholders with real values):
+## License
 
-```
-DATABASE_URL="postgresql://username:password@localhost:5432/buildr"
-NEXTAUTH_SECRET="your-secure-secret-key"
-NEXTAUTH_URL="http://localhost:3000"
-OPENAI_API_KEY="your-openai-api-key"
-```
+MIT
 
-*Do not commit `.env` files to version control. Keep secrets safe.*
+## Author
 
-## Technologies
-
-- **TypeScript** (main language)
-- **Next.js** (framework)
-- **CSS** (styling)
-- **PostgreSQL** (database)
-- **OpenAI API** (AI generation)
-
-## Contributing
-
-Interested in contributing? Please read our [contributing guidelines](CONTRIBUTING.md) before submitting a pull request.
-
-
-## Contact
-
-Created by [adityarao3](https://github.com/adityarao3)
-
-***
-
-Let me know if you want this tailored further (e.g., add demo prompts, code samples, or more structure explanations)!
-
-
+Built by [iajay007](https://github.com/iajay007)
