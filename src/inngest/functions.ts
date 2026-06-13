@@ -59,10 +59,7 @@ export const BuildrAgent = inngest.createFunction(
             description: "An Expert Coding Agent",
             system: PROMPT,
             model: openai({
-                model: "gpt-4.1",
-                defaultParameters: {
-                    temperature: 0.1,
-                }
+                model: "gpt-5.1",
             }),
             tools: [
                 createTool({

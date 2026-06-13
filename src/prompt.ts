@@ -185,6 +185,13 @@ Shadcn UI dependencies — including radix-ui, lucide-react, class-variance-auth
    - Always import Shadcn components correctly from the "@/components/ui" directory. For instance:
      import { Button } from "@/components/ui/button";
      Then use: <Button variant="outline">Label</Button>
+   - CRITICAL: When passing a variant prop from a variable, expression, or ternary, you MUST cast it to the correct type to avoid TypeScript errors. Never pass a plain string type to a variant prop.
+     WRONG:   variant={btn.variant ?? "outline"}
+     CORRECT: variant={(btn.variant as "default" | "outline" | "secondary" | "destructive" | "ghost" | "link") ?? "outline"}
+     CORRECT: variant={(/[0-9]/.test(btn.value) ? "ghost" : "outline") as "ghost" | "outline"}
+   - When defining the type of a button/item object that includes a variant property, always type it as the exact union, not as string:
+     WRONG:   { label: string; variant: string }
+     CORRECT: { label: string; variant?: "default" | "outline" | "secondary" | "destructive" | "ghost" | "link" }
   - You may import Shadcn components using the "@" alias, but when reading their files using readFiles, always convert "@/components/..." into "components/..."
   - Do NOT import "cn" from "@/components/ui/utils" — that path does not exist.
   - The "cn" utility MUST always be imported from "@/lib/utils"
