@@ -38,7 +38,7 @@ export const messagesRouter = createTRPCRouter({
             }),
         )
         .mutation(async ({ input, ctx }) => {
-            const existingProject = await prisma.project.findUnique({
+            const existingProject = await prisma.project.findFirst({
                 where: {
                     id: input.projectId,
                     userId: ctx.auth.userId,
@@ -58,25 +58,27 @@ export const messagesRouter = createTRPCRouter({
                     throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "You have run out of credits" });
                 }
             }
-            
-            const createdMessage = await prisma.message.create({
-                data: {
-                    projectId: existingProject.id,
-                    content: input.value,
-                    role: "USER",
-                    type: "RESULT",
-                },
-            });
-            await inngest.send({
-                name: "BuildrAgent/run",
-                data: {
-                    value: input.value,
-                    projectId: input.projectId,
-                }
 
-            });
-            return createdMessage;
-
+            try {
+                const createdMessage = await prisma.message.create({
+                    data: {
+                        projectId: existingProject.id,
+                        content: input.value,
+                        role: "USER",
+                        type: "RESULT",
+                    },
+                });
+                await inngest.send({
+                    name: "BuildrAgent/run",
+                    data: {
+                        value: input.value,
+                        projectId: input.projectId,
+                    }
+                });
+                return createdMessage;
+            } catch (error) {
+                throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create message" });
+            }
         }),
 
 });
